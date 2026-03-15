@@ -1,0 +1,52 @@
+import express from "express";
+import cors from "cors";
+import "./config/env.js";
+import { PORT } from "./config/env.js";
+import { testConnection } from "./config/db.js";
+import authRoutes from "./routes/auth.js";
+import profileRoutes from "./routes/profile.js";
+import bloodBankRoutes from "./routes/bloodBanks.js";
+import adminRoutes from "./routes/admin.js";
+import requestRoutes from "./routes/requests.js";
+
+const app = express();
+
+app.use(
+  cors({
+    origin: "*", // adjust to your frontend origin in production
+    credentials: false,
+  })
+);
+app.use(express.json());
+
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
+app.use("/api/auth", authRoutes);
+app.use("/api/profile", profileRoutes);
+app.use("/api/blood-banks", bloodBankRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/requests", requestRoutes);
+
+app.use((req, res) => {
+  res.status(404).json({ message: "Not found" });
+});
+
+app.use((err, req, res, next) => {
+  console.error("Unhandled error", err);
+  res.status(500).json({ message: "Internal server error" });
+});
+
+(async () => {
+  const dbConnected = await testConnection();
+  if (!dbConnected) {
+    console.error("Failed to connect to database. Exiting...");
+    process.exit(1);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`Backend listening on port ${PORT}`);
+  });
+})();
+
