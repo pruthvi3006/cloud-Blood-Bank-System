@@ -9,7 +9,7 @@ router.use(authMiddleware, requireAdmin);
 // Ensure blood bank record exists for admin (called during onboarding or lazily)
 router.post("/blood-bank", async (req, res) => {
   try {
-    const { name, address, city, state, pincode, latitude, longitude, contact_phone } =
+    const { name, address, city, state, pincode, contact_phone } =
       req.body;
 
     const existing = await query(
@@ -24,8 +24,6 @@ router.post("/blood-bank", async (req, res) => {
              city = COALESCE(?, city),
              state = COALESCE(?, state),
              pincode = COALESCE(?, pincode),
-             latitude = COALESCE(?, latitude),
-             longitude = COALESCE(?, longitude),
              contact_phone = COALESCE(?, contact_phone)
          WHERE admin_user_id = ?`,
         [
@@ -34,8 +32,6 @@ router.post("/blood-bank", async (req, res) => {
           city,
           state,
           pincode,
-          latitude,
-          longitude,
           contact_phone,
           req.user.id,
         ]
@@ -46,16 +42,14 @@ router.post("/blood-bank", async (req, res) => {
 
     await query(
       `INSERT INTO blood_banks
-       (name, address, city, state, pincode, latitude, longitude, contact_phone, admin_user_id)
-       VALUES (?,?,?,?,?,?,?,?,?)`,
+       (name, address, city, state, pincode, contact_phone, admin_user_id)
+       VALUES (?,?,?,?,?,?,?)`,
       [
         name,
         address,
         city,
         state,
         pincode,
-        latitude,
-        longitude,
         contact_phone,
         req.user.id,
       ]

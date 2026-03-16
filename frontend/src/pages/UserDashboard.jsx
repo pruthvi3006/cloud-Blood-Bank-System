@@ -8,10 +8,12 @@ const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 export default function UserDashboard() {
   const [profile, setProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [loadingCities, setLoadingCities] = useState(true);
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [cities, setCities] = useState([]);
   const [searchForm, setSearchForm] = useState({
     bloodGroup: "A+",
-    lat: "",
-    lng: "",
+    city: "",
   });
   const [results, setResults] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -20,6 +22,7 @@ export default function UserDashboard() {
   useEffect(() => {
     loadProfile();
     loadRequests();
+    loadCities();
   }, []);
 
   async function loadProfile() {
@@ -28,15 +31,27 @@ export default function UserDashboard() {
         headers: authHeaders(),
       });
       setProfile(data);
-      setSearchForm((f) => ({
-        ...f,
-        lat: data.latitude || "",
-        lng: data.longitude || "",
-      }));
     } catch (err) {
       console.error(err);
     } finally {
       setLoadingProfile(false);
+    }
+  }
+
+  async function loadCities() {
+    try {
+      const { data } = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/blood-banks/cities`,
+        { headers: authHeaders() }
+      );
+      setCities(data);
+      if (data.length > 0) {
+        setSearchForm((f) => ({ ...f, city: data[0] }));
+      }
+    } catch (err) {
+      console.error("Error loading cities:", err);
+    } finally {
+      setLoadingCities(false);
     }
   }
 
@@ -51,55 +66,47 @@ export default function UserDashboard() {
     }
   }
 
-  async function updateProfileLocation() {
-    try {
-      await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/profile`,
-        {
-          latitude: parseFloat(searchForm.lat),
-          longitude: parseFloat(searchForm.lng),
-        },
-        { headers: authHeaders() }
-      );
-      await loadProfile();
-      alert("Location updated");
-    } catch (err) {
-      console.error(err);
-      alert("Failed to update location");
-    }
-  }
-
-  async function useBrowserLocation() {
-    if (!navigator.geolocation) {
-      alert("Geolocation not supported in this browser");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude.toFixed(6);
-        const lng = pos.coords.longitude.toFixed(6);
-        setSearchForm((f) => ({ ...f, lat, lng }));
-      },
-      () => {
-        alert("Could not get location");
-      }
-    );
-  }
-
   async function search() {
     setError("");
+    setResults([]);
+
+    // Validation checks
+    if (!searchForm.city) {
+      setError("Please select a city");
+      return;
+    }
+
+    if (!searchForm.bloodGroup) {
+      setError("Please select a blood group");
+      return;
+    }
+
+    setLoadingSearch(true);
     try {
       const params = new URLSearchParams({
         bloodGroup: searchForm.bloodGroup,
-        lat: searchForm.lat,
-        lng: searchForm.lng,
+        city: searchForm.city,
       }).toString();
-      const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/blood-banks/search?${params}`, {
-        headers: authHeaders(),
-      });
+
+      console.log("Searching for blood banks:", params);
+
+      const { data } = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/blood-banks/search?${params}`,
+        { headers: authHeaders() }
+      );
+
+      if (data.length === 0) {
+        setError(
+          `No blood banks with ${searchForm.bloodGroup} in stock found in ${searchForm.city}`
+        );
+      }
       setResults(data);
     } catch (err) {
-      setError(err.response?.data?.message || "Search failed");
+      const errorMsg = err.response?.data?.message || err.message || "Search failed";
+      console.error("Search error:", err);
+      setError(errorMsg);
+    } finally {
+      setLoadingSearch(false);
     }
   }
 
@@ -132,35 +139,6 @@ export default function UserDashboard() {
             <p>
               <strong>Email:</strong> {profile.email}
             </p>
-            <p>
-              <strong>Location:</strong>{" "}
-              {profile.latitude && profile.longitude
-                ? `${profile.latitude}, ${profile.longitude}`
-                : "Not set"}
-            </p>
-            <div className="card-section">
-              <h3>Set Location</h3>
-              <div className="form-inline">
-                <input
-                  placeholder="Latitude"
-                  value={searchForm.lat}
-                  onChange={(e) =>
-                    setSearchForm((f) => ({ ...f, lat: e.target.value }))
-                  }
-                />
-                <input
-                  placeholder="Longitude"
-                  value={searchForm.lng}
-                  onChange={(e) =>
-                    setSearchForm((f) => ({ ...f, lng: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="actions-row">
-                <button onClick={useBrowserLocation}>Use my location</button>
-                <button onClick={updateProfileLocation}>Save location</button>
-              </div>
-            </div>
             <MedicalReportUploader />
           </>
         ) : (
@@ -171,6 +149,26 @@ export default function UserDashboard() {
       <div className="card">
         <h2>Search Blood</h2>
         <div className="card-section">
+          <label>
+            City
+            <select
+              value={searchForm.city}
+              onChange={(e) =>
+                setSearchForm((f) => ({ ...f, city: e.target.value }))
+              }
+              disabled={loadingCities}
+            >
+              {loadingCities ? (
+                <option>Loading cities...</option>
+              ) : (
+                cities.map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
           <label>
             Blood group
             <select
@@ -187,7 +185,9 @@ export default function UserDashboard() {
             </select>
           </label>
           <div className="actions-row">
-            <button onClick={search}>Search nearby blood banks</button>
+            <button onClick={search} disabled={loadingSearch || loadingCities}>
+              {loadingSearch ? "Searching..." : "Search"}
+            </button>
           </div>
           {error && <div className="error">{error}</div>}
         </div>
@@ -199,8 +199,9 @@ export default function UserDashboard() {
               <li key={`${r.id}-${r.blood_group}`} className="list-item">
                 <div>
                   <strong>{r.name}</strong> ({r.city}, {r.state})<br />
-                  Group {r.blood_group}, Units: {r.units_available}, Distance:{" "}
-                  {r.distance.toFixed(1)} km
+                  {r.address}<br />
+                  Phone: {r.contact_phone}<br />
+                  Blood Group: {r.blood_group}, Units: {r.units_available}
                 </div>
                 <button onClick={() => createRequest(r.id, r.blood_group)}>
                   Request

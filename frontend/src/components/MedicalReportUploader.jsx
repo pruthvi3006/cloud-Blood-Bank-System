@@ -16,13 +16,26 @@ export default function MedicalReportUploader() {
         { contentType: file.type || "application/octet-stream" },
         { headers: authHeaders() }
       );
+
+      // Upload file to S3 using presigned URL
       await axios.put(data.uploadUrl, file, {
-        headers: { "Content-Type": file.type || "application/octet-stream" },
+        headers: {
+          "Content-Type": file.type || "application/octet-stream",
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          console.log(`Upload progress: ${percentCompleted}%`);
+        },
       });
-      alert("Medical report uploaded.");
+
+      alert("Medical report uploaded successfully.");
+      setFile(null);
     } catch (err) {
-      console.error(err);
-      alert("Upload failed");
+      console.error("Upload error details:", err);
+      const errorMsg = err.response?.statusText || err.message || "Unknown error";
+      alert(`Upload failed: ${errorMsg}`);
     } finally {
       setUploading(false);
     }

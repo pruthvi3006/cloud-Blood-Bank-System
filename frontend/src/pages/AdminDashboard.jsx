@@ -11,8 +11,6 @@ export default function AdminDashboard() {
     city: "",
     state: "",
     pincode: "",
-    latitude: "",
-    longitude: "",
     contact_phone: "",
   });
   const [stock, setStock] = useState([]);
@@ -51,8 +49,6 @@ export default function AdminDashboard() {
           city: bank.city,
           state: bank.state,
           pincode: bank.pincode,
-          latitude: parseFloat(bank.latitude),
-          longitude: parseFloat(bank.longitude),
           contact_phone: bank.contact_phone,
         },
         { headers: authHeaders() }
@@ -168,22 +164,6 @@ export default function AdminDashboard() {
               onChange={(e) => setBank({ ...bank, pincode: e.target.value })}
             />
           </label>
-          <div className="form-inline">
-            <input
-              placeholder="Latitude"
-              value={bank.latitude}
-              onChange={(e) =>
-                setBank({ ...bank, latitude: e.target.value })
-              }
-            />
-            <input
-              placeholder="Longitude"
-              value={bank.longitude}
-              onChange={(e) =>
-                setBank({ ...bank, longitude: e.target.value })
-              }
-            />
-          </div>
           <label>
             Contact phone
             <input
