@@ -13,13 +13,7 @@ dotenv.config();
 
 const app = express();
 
-console.log("Starting backend with config:", {
-  PORT,
-  JWT_SECRET: process.env.JWT_SECRET ? "set" : "not set",
-  AWS_REGION: process.env.AWS_REGION ? "set" : "not set",
-  MEDICAL_REPORTS_BUCKET: process.env.MEDICAL_REPORTS_BUCKET ? "set" : "not set",
-  DATABASE_URL: process.env.DATABASE_URL ? "set" : "not set",
-});
+
 
 app.use(
   cors({
@@ -49,6 +43,13 @@ app.use((err, req, res, next) => {
 });
 
 (async () => {
+  console.log("Starting backend with config:", {
+    PORT,
+    JWT_SECRET: process.env.JWT_SECRET ? "set" : "not set",
+    AWS_REGION: process.env.AWS_REGION ? "set" : "not set",
+    MEDICAL_REPORTS_BUCKET: process.env.MEDICAL_REPORTS_BUCKET ? "set" : "not set",
+    DATABASE_URL: process.env.DATABASE_URL ? "set" : "not set",
+  });
   const dbConnected = await testConnection();
   if (!dbConnected) {
     console.error("Failed to connect to database. Exiting...");
