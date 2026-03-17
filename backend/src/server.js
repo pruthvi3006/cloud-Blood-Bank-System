@@ -8,6 +8,8 @@ import profileRoutes from "./routes/profile.js";
 import bloodBankRoutes from "./routes/bloodBanks.js";
 import adminRoutes from "./routes/admin.js";
 import requestRoutes from "./routes/requests.js";
+import dotenv from "dotenv";
+dotenv.config();
 
 const app = express();
 
