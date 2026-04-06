@@ -126,21 +126,64 @@ export default function UserDashboard() {
   }
 
   return (
-    <div className="grid-2">
-      <div className="card">
-        <h2>User Profile</h2>
-        {loadingProfile ? (
-          <p>Loading...</p>
-        ) : profile ? (
-          <>
-            <p>
-              <strong>Name:</strong> {profile.name || "-"}
-            </p>
-            <p>
-              <strong>Email:</strong> {profile.email}
-            </p>
-            <MedicalReportUploader />
-          </>
+    <div className="dashboard-container">
+      <div className="dashboard-banner">
+        <img src="/images/user_banner.png" alt="Blood Donation Banner" />
+        <div className="dashboard-banner-overlay">
+          <h2>Make a Difference Today</h2>
+        </div>
+      </div>
+
+      <div className="stats-grid">
+        <div className="stat-card red">
+          <div className="stat-icon">🩸</div>
+          <div className="stat-info">
+            <h4>Total Requests</h4>
+            <p>{requests.length}</p>
+          </div>
+        </div>
+        <div className="stat-card blue">
+          <div className="stat-icon">🏥</div>
+          <div className="stat-info">
+            <h4>Nearby Banks</h4>
+            <p>{results.length || "0"}</p>
+          </div>
+        </div>
+        <div className="stat-card green">
+          <div className="stat-icon">✅</div>
+          <div className="stat-info">
+            <h4>Status</h4>
+            <p>Eligible</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid-2">
+        <div className="card">
+          <h2>User Profile</h2>
+          {loadingProfile ? (
+            <p>Loading...</p>
+          ) : profile ? (
+            <>
+              <div className="profile-header">
+                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || "User")}&background=fee2e2&color=dc2626&size=150`} alt="Avatar" className="avatar" />
+                <div>
+                  <h3 style={{margin: 0, fontSize: "1.2rem", color: "#0f172a"}}>{profile.name || "User"}</h3>
+                  <p style={{margin: "0.25rem 0 0", color: "#64748b"}}>{profile.email}</p>
+                </div>
+              </div>
+              <MedicalReportUploader />
+              
+              <div className="info-card">
+                <div className="info-card-content">
+                  <div className="info-card-header">
+                    <span style={{fontSize: "1.5rem"}}>💡</span>
+                    <h3>Why Donate Blood?</h3>
+                  </div>
+                  <p>Your single donation can save up to 3 lives. Regular blood donation is linked to lower blood pressure and lower risk for heart attacks.</p>
+                </div>
+              </div>
+            </>
         ) : (
           <p>Could not load profile.</p>
         )}
@@ -228,6 +271,7 @@ export default function UserDashboard() {
           </ul>
         </div>
       </div>
+    </div>
     </div>
   );
 }

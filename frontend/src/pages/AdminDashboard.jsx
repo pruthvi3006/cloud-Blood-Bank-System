@@ -123,10 +123,60 @@ export default function AdminDashboard() {
     }
   }
 
+  async function downloadMedicalReport(userId) {
+    try {
+      const { data } = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/admin/users/${userId}/medical-report`,
+        { headers: authHeaders() }
+      );
+      if (data.downloadUrl) {
+        window.open(data.downloadUrl, "_blank", "noopener,noreferrer");
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Failed to download medical report");
+    }
+  }
+
+  const totalStock = stock.reduce((sum, item) => sum + Number(item.units_available || 0), 0);
+  const pendingRequests = requests.filter(r => r.status === "PENDING").length;
+
   return (
-    <div className="grid-2">
-      <div className="card">
-        <h2>Blood Bank Profile</h2>
+    <div className="dashboard-container">
+      <div className="dashboard-banner">
+        <img src="/images/admin_banner.png" alt="Blood Bank Cover" />
+        <div className="dashboard-banner-overlay">
+          <h2>{bank.name ? `${bank.name} Dashboard` : "Blood Bank Portal"}</h2>
+        </div>
+      </div>
+
+      <div className="stats-grid">
+        <div className="stat-card red">
+          <div className="stat-icon">🩸</div>
+          <div className="stat-info">
+            <h4>Total Units in Stock</h4>
+            <p>{totalStock}</p>
+          </div>
+        </div>
+        <div className="stat-card blue">
+          <div className="stat-icon">🔔</div>
+          <div className="stat-info">
+            <h4>Pending Requests</h4>
+            <p>{pendingRequests}</p>
+          </div>
+        </div>
+        <div className="stat-card green">
+          <div className="stat-icon">🏥</div>
+          <div className="stat-info">
+            <h4>Location</h4>
+            <p style={{fontSize:"1.2rem"}}>{bank.city || "Not Set"}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid-2">
+        <div className="card">
+          <h2>Blood Bank Profile</h2>
         <form className="form" onSubmit={saveBank}>
           <label>
             Name
@@ -219,21 +269,29 @@ export default function AdminDashboard() {
                     {r.status}
                   </span>
                 </div>
-                {r.status === "PENDING" && (
                   <div className="actions-row">
-                    <button onClick={() => changeStatus(r.id, "accept")}>
-                      Accept
-                    </button>
-                    <button onClick={() => changeStatus(r.id, "reject")}>
-                      Reject
-                    </button>
+                    {r.has_medical_report === 1 && (
+                      <button onClick={() => downloadMedicalReport(r.user_id)} style={{background: "#0ea5e9"}}>
+                        📄 View Report
+                      </button>
+                    )}
+                    {r.status === "PENDING" && (
+                      <>
+                        <button onClick={() => changeStatus(r.id, "accept")}>
+                          Accept
+                        </button>
+                        <button onClick={() => changeStatus(r.id, "reject")}>
+                          Reject
+                        </button>
+                      </>
+                    )}
                   </div>
-                )}
               </li>
             ))}
           </ul>
         </div>
       </div>
+    </div>
     </div>
   );
 }

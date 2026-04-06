@@ -9,7 +9,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  async function handleSubmit(e) {
+ async function handleSubmit(e) {
     e.preventDefault();
     setError("");
     try {
@@ -26,33 +26,38 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="card">
-      <h2>Login</h2>
-      <form onSubmit={handleSubmit} className="form">
-        <label>
-          Email
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </label>
-        <label>
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </label>
-        {error && <div className="error">{error}</div>}
-        <button type="submit">Login</button>
-      </form>
-      <p>
-        No account? <Link to="/register">Register</Link>
-      </p>
+    <div className="auth-container">
+      <div className="auth-form-wrapper">
+        <h2>Login</h2>
+        <form onSubmit={handleSubmit} className="form">
+          <label>
+            Email
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </label>
+          {error && <div className="error">{error}</div>}
+          <button type="submit">Login</button>
+        </form>
+        <p style={{ marginTop: "1.5rem" }}>
+          No account? <Link to="/register">Register</Link>
+        </p>
+      </div>
+      <div className="auth-hero">
+        <img src="/hero.png" alt="Blood Donation Hero" />
+      </div>
     </div>
   );
 }
