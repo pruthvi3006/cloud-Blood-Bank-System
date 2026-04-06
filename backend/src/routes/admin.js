@@ -1,6 +1,7 @@
 import express from "express";
 import { query } from "../config/db.js";
 import { authMiddleware, requireAdmin } from "../middleware/auth.js";
+import { getMedicalReportDownloadUrl } from "../s3/s3Client.js";
 
 const router = express.Router();
 
@@ -153,7 +154,9 @@ router.get("/requests", async (req, res) => {
               r.created_at,
               u.name as user_name,
               u.phone as user_phone,
-              u.city as user_city
+              u.city as user_city,
+              u.id as user_id,
+              IF(u.medical_report_s3_key IS NOT NULL, 1, 0) as has_medical_report
        FROM blood_requests r
        JOIN users u ON u.id = r.user_id
        WHERE r.blood_bank_id = ?
@@ -163,6 +166,41 @@ router.get("/requests", async (req, res) => {
     res.json(requests);
   } catch (err) {
     console.error("Admin list requests error", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// GET /api/admin/users/:userId/medical-report
+router.get("/users/:userId/medical-report", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // First confirm admin's blood bank
+    const bank = await query(
+      "SELECT id FROM blood_banks WHERE admin_user_id = ?",
+      [req.user.id]
+    );
+    if (bank.length === 0) {
+      return res.status(403).json({ message: "Blood bank profile not created" });
+    }
+
+    const result = await query(
+      "SELECT medical_report_s3_key FROM users WHERE id = ?",
+      [userId]
+    );
+    if (result.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    const { medical_report_s3_key: key } = result[0];
+    if (!key) {
+      return res.status(404).json({ message: "No medical report uploaded" });
+    }
+
+    const downloadUrl = await getMedicalReportDownloadUrl({ key });
+    res.json({ downloadUrl });
+  } catch (err) {
+    console.error("Admin user medical report download error", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });

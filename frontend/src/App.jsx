@@ -10,7 +10,10 @@ function Layout({ children }) {
   return (
     <div className="app-container">
       <header className="app-header">
-        <h1>Cloud Blood Bank System</h1>
+        <div className="brand">
+          <img src="/logo.png" alt="Blood Bank Logo" className="brand-logo" />
+          <h1>Cloud Blood Bank System</h1>
+        </div>
         <nav>
           {auth ? (
             <>

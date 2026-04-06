@@ -35,57 +35,62 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="card">
-      <h2>Register</h2>
-      <form onSubmit={handleSubmit} className="form">
-        <label>
-          Name
-          <input
-            value={form.name}
-            onChange={(e) => update("name", e.target.value)}
-          />
-        </label>
-        <label>
-          Email
-          <input
-            type="email"
-            value={form.email}
-            onChange={(e) => update("email", e.target.value)}
-            required
-          />
-        </label>
-        <label>
-          Password
-          <input
-            type="password"
-            value={form.password}
-            onChange={(e) => update("password", e.target.value)}
-            required
-          />
-        </label>
-        <label>
-          Phone
-          <input
-            value={form.phone}
-            onChange={(e) => update("phone", e.target.value)}
-          />
-        </label>
-        <label>
-          Role
-          <select
-            value={form.role}
-            onChange={(e) => update("role", e.target.value)}
-          >
-            <option value="USER">User (Need Blood)</option>
-            <option value="ADMIN">Blood Bank Admin</option>
-          </select>
-        </label>
-        {error && <div className="error">{error}</div>}
-        <button type="submit">Create account</button>
-      </form>
-      <p>
-        Already have an account? <Link to="/login">Login</Link>
-      </p>
+    <div className="auth-container">
+      <div className="auth-form-wrapper">
+        <h2>Register</h2>
+        <form onSubmit={handleSubmit} className="form">
+          <label>
+            Name
+            <input
+              value={form.name}
+              onChange={(e) => update("name", e.target.value)}
+            />
+          </label>
+          <label>
+            Email
+            <input
+              type="email"
+              value={form.email}
+              onChange={(e) => update("email", e.target.value)}
+              required
+            />
+          </label>
+          <label>
+            Password
+            <input
+              type="password"
+              value={form.password}
+              onChange={(e) => update("password", e.target.value)}
+              required
+            />
+          </label>
+          <label>
+            Phone
+            <input
+              value={form.phone}
+              onChange={(e) => update("phone", e.target.value)}
+            />
+          </label>
+          <label>
+            Role
+            <select
+              value={form.role}
+              onChange={(e) => update("role", e.target.value)}
+            >
+              <option value="USER">User (Need Blood)</option>
+              <option value="ADMIN">Blood Bank Admin</option>
+            </select>
+          </label>
+          {error && <div className="error">{error}</div>}
+          <button type="submit">Create account</button>
+        </form>
+        <p style={{ marginTop: "1.5rem" }}>
+          Already have an account? <Link to="/login">Login</Link>
+        </p>
+      </div>
+      <div className="auth-hero">
+        <img src="/hero.png" alt="Blood Donation Hero" />
+      </div>
     </div>
   );
 }
