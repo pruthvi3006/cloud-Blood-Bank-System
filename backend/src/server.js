@@ -8,6 +8,7 @@ import profileRoutes from "./routes/profile.js";
 import bloodBankRoutes from "./routes/bloodBanks.js";
 import adminRoutes from "./routes/admin.js";
 import requestRoutes from "./routes/requests.js";
+import publicRoutes from "./routes/public.js";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -26,6 +27,8 @@ app.use(express.json());
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
+
+app.use("/api/public", publicRoutes);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);

@@ -4,7 +4,7 @@ This project is a simple cloud-based blood bank system with:
 
 - **Frontend**: React (Vite) SPA for users and blood bank admins.
 - **Backend**: Node.js + Express REST API.
-- **Database**: PostgreSQL (use AWS RDS in production).
+- **Database**: MySQL (local or **Amazon RDS for MySQL** in production — see `docs/aws-rds-mysql.md`).
 - **File storage**: AWS S3 for user medical reports.
 - **Hosting**: Intended to run on AWS EC2 (backend + frontend), with RDS + S3.
 
@@ -30,7 +30,7 @@ This project is a simple cloud-based blood bank system with:
 - `backend/` – Node/Express API
   - `src/server.js` – main server entry.
   - `src/routes/` – auth, profile, blood bank search, admin, requests.
-  - `src/config/db.js` – Postgres pool.
+  - `src/config/db.js` – MySQL pool (`DATABASE_URL`, optional `DATABASE_SSL` for RDS).
   - `src/s3/s3Client.js` – S3 presigned URL helpers.
   - `schema.sql` – database tables for users, blood_banks, blood_stock, blood_requests.
 
@@ -44,12 +44,12 @@ This project is a simple cloud-based blood bank system with:
 
 ### Running locally
 
-#### 1. Database (PostgreSQL)
+#### 1. Database (MySQL)
 
-Create a PostgreSQL database (local or in the cloud), then run the schema:
+Create a MySQL database (local or [Amazon RDS](docs/aws-rds-mysql.md)), then run the schema:
 
 ```bash
-psql -h HOST -U USER -d DB_NAME -f backend/schema.sql
+mysql -h HOST -u USER -p DB_NAME < backend/schema.sql
 ```
 
 #### 2. Backend
@@ -82,10 +82,10 @@ The Vite dev server runs on port `5173` and proxies `/api` to `http://localhost:
    - Create a private bucket for medical reports (e.g. `blood-bank-medical-reports`).
    - Disable public access; backend uses presigned URLs for upload/download.
 
-2. **RDS (PostgreSQL)**
-   - Create a PostgreSQL instance in the same VPC as your EC2 instance.
-   - Restrict inbound to the EC2 security group.
-   - Run `backend/schema.sql` on this DB.
+2. **RDS (MySQL)**
+   - Create an RDS **MySQL** instance (see `docs/aws-rds-mysql.md` for `DATABASE_URL` and TLS).
+   - Restrict inbound **3306** to the EC2 security group (or use the Terraform stack in `infrastructure/terraform`).
+   - Run `backend/schema.sql` (and migrations if upgrading) on this DB.
 
 3. **EC2 instance**
    - Launch an Ubuntu EC2 instance.

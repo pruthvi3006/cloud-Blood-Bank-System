@@ -15,6 +15,10 @@ export default function AdminDashboard() {
   });
   const [stock, setStock] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [acceptingId, setAcceptingId] = useState(null);
+  const [acceptMessage, setAcceptMessage] = useState("");
+  const [acceptFile, setAcceptFile] = useState(null);
+  const [acceptSubmitting, setAcceptSubmitting] = useState(false);
 
   useEffect(() => {
     loadBank();
@@ -25,7 +29,7 @@ export default function AdminDashboard() {
   async function loadBank() {
     try {
       const { data } = await axios.post(
-        "/api/admin/blood-bank",
+        `${import.meta.env.VITE_API_URL}/api/admin/blood-bank`,
         {},
         { headers: authHeaders() }
       );
@@ -123,10 +127,23 @@ export default function AdminDashboard() {
     }
   }
 
-  async function downloadMedicalReport(userId) {
+  function startAccept(requestId) {
+    setAcceptingId(requestId);
+    setAcceptMessage("");
+    setAcceptFile(null);
+  }
+
+  function cancelAccept() {
+    setAcceptingId(null);
+    setAcceptMessage("");
+    setAcceptFile(null);
+    setAcceptSubmitting(false);
+  }
+
+  async function downloadMedicalReport(requestId) {
     try {
       const { data } = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/admin/users/${userId}/medical-report`,
+        `${import.meta.env.VITE_API_URL}/api/admin/requests/${requestId}/medical-report`,
         { headers: authHeaders() }
       );
       if (data.downloadUrl) {
@@ -135,6 +152,45 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.message || "Failed to download medical report");
+    }
+  }
+
+  async function submitAccept(requestId) {
+    if (!acceptFile) {
+      alert("Choose a fitness certificate file (PDF or image) to upload.");
+      return;
+    }
+    setAcceptSubmitting(true);
+    try {
+      const { data: urlData } = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/admin/requests/${requestId}/fitness-certificate/upload-url`,
+        { contentType: acceptFile.type || "application/octet-stream" },
+        { headers: authHeaders() }
+      );
+
+      await axios.put(urlData.uploadUrl, acceptFile, {
+        headers: {
+          "Content-Type": acceptFile.type || "application/octet-stream",
+        },
+      });
+
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/admin/requests/${requestId}/accept`,
+        {
+          fitness_certificate_s3_key: urlData.key,
+          bank_message: acceptMessage,
+        },
+        { headers: authHeaders() }
+      );
+
+      cancelAccept();
+      await loadRequests();
+      alert("Request accepted. Fitness certificate stored and message sent to the user.");
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Failed to accept request");
+    } finally {
+      setAcceptSubmitting(false);
     }
   }
 
@@ -261,31 +317,67 @@ export default function AdminDashboard() {
           {requests.length === 0 && <p>No requests yet.</p>}
           <ul className="list">
             {requests.map((r) => (
-              <li key={r.id} className="list-item">
-                <div>
+              <li key={r.id} className="list-item" style={{ alignItems: "flex-start" }}>
+                <div style={{ flex: 1 }}>
                   <strong>{r.user_name || "User"}</strong> ({r.user_city}) -{" "}
                   {r.blood_group} ({r.required_units} unit) -{" "}
                   <span className={`badge badge-${r.status.toLowerCase()}`}>
                     {r.status}
                   </span>
+                  {acceptingId === r.id && r.status === "PENDING" && (
+                    <div className="accept-panel">
+                      <label>
+                        Message to user
+                        <textarea
+                          value={acceptMessage}
+                          onChange={(e) => setAcceptMessage(e.target.value)}
+                          placeholder="Optional note about eligibility, collection time, etc."
+                        />
+                      </label>
+                      <label>
+                        Fitness certificate (required)
+                        <input
+                          type="file"
+                          accept=".pdf,image/*"
+                          onChange={(e) => setAcceptFile(e.target.files?.[0] || null)}
+                        />
+                      </label>
+                      <div className="actions-row">
+                        <button
+                          type="button"
+                          disabled={acceptSubmitting}
+                          onClick={() => submitAccept(r.id)}
+                        >
+                          {acceptSubmitting ? "Saving…" : "Confirm accept"}
+                        </button>
+                        <button type="button" className="secondary-btn" onClick={cancelAccept} disabled={acceptSubmitting}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                  <div className="actions-row">
-                    {r.has_medical_report === 1 && (
-                      <button onClick={() => downloadMedicalReport(r.user_id)} style={{background: "#0ea5e9"}}>
-                        📄 View Report
+                <div className="actions-row" style={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  {Number(r.has_medical_report) === 1 && (
+                    <button
+                      type="button"
+                      onClick={() => downloadMedicalReport(r.id)}
+                      style={{ background: "#0ea5e9" }}
+                    >
+                      View / download medical report
+                    </button>
+                  )}
+                  {r.status === "PENDING" && acceptingId !== r.id && (
+                    <>
+                      <button type="button" onClick={() => startAccept(r.id)}>
+                        Accept
                       </button>
-                    )}
-                    {r.status === "PENDING" && (
-                      <>
-                        <button onClick={() => changeStatus(r.id, "accept")}>
-                          Accept
-                        </button>
-                        <button onClick={() => changeStatus(r.id, "reject")}>
-                          Reject
-                        </button>
-                      </>
-                    )}
-                  </div>
+                      <button type="button" onClick={() => changeStatus(r.id, "reject")}>
+                        Reject
+                      </button>
+                    </>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

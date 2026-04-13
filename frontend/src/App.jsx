@@ -1,4 +1,5 @@
-import { Routes, Route, Navigate, Link } from "react-router-dom";
+import { Routes, Route, Navigate, Link, useLocation, useNavigate } from "react-router-dom";
+import HomePage from "./pages/HomePage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
 import UserDashboard from "./pages/UserDashboard.jsx";
@@ -6,15 +7,18 @@ import AdminDashboard from "./pages/AdminDashboard.jsx";
 import { getAuth, logout } from "./services/auth.js";
 
 function Layout({ children }) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const auth = getAuth();
   return (
     <div className="app-container">
       <header className="app-header">
-        <div className="brand">
+        <Link to="/" className="brand brand-link">
           <img src="/logo.png" alt="Blood Bank Logo" className="brand-logo" />
           <h1>Cloud Blood Bank System</h1>
-        </div>
-        <nav>
+        </Link>
+        <nav key={location.pathname}>
+          <Link to="/">Home</Link>
           {auth ? (
             <>
               {auth.user.role === "USER" && (
@@ -25,9 +29,10 @@ function Layout({ children }) {
               )}
               <button
                 className="link-button"
+                type="button"
                 onClick={() => {
                   logout();
-                  window.location.href = "/login";
+                  navigate("/login", { replace: true });
                 }}
               >
                 Logout
@@ -59,7 +64,7 @@ export default function App() {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route

@@ -111,17 +111,39 @@ export default function UserDashboard() {
   }
 
   async function createRequest(bankId, bloodGroup) {
+    if (!profile?.medical_report_s3_key) {
+      alert(
+        "Please upload your medical report in your profile before requesting blood. The report is sent to the blood bank with your request."
+      );
+      return;
+    }
     try {
       await axios.post(
         `${import.meta.env.VITE_API_URL}/api/requests`,
         { blood_bank_id: bankId, blood_group: bloodGroup, required_units: 1 },
         { headers: authHeaders() }
       );
-      alert("Request created");
+      alert("Request sent. Your current medical report is attached for the blood bank to review.");
       await loadRequests();
     } catch (err) {
       console.error(err);
-      alert("Failed to create request");
+      const msg = err.response?.data?.message || "Failed to create request";
+      alert(msg);
+    }
+  }
+
+  async function downloadFitnessCertificate(requestId) {
+    try {
+      const { data } = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/requests/${requestId}/fitness-certificate`,
+        { headers: authHeaders() }
+      );
+      if (data.downloadUrl) {
+        window.open(data.downloadUrl, "_blank", "noopener,noreferrer");
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Could not download fitness certificate");
     }
   }
 
@@ -172,7 +194,7 @@ export default function UserDashboard() {
                   <p style={{margin: "0.25rem 0 0", color: "#64748b"}}>{profile.email}</p>
                 </div>
               </div>
-              <MedicalReportUploader />
+              <MedicalReportUploader onUploaded={loadProfile} />
               
               <div className="info-card">
                 <div className="info-card-content">
@@ -246,7 +268,15 @@ export default function UserDashboard() {
                   Phone: {r.contact_phone}<br />
                   Blood Group: {r.blood_group}, Units: {r.units_available}
                 </div>
-                <button onClick={() => createRequest(r.id, r.blood_group)}>
+                <button
+                  onClick={() => createRequest(r.id, r.blood_group)}
+                  disabled={!profile?.medical_report_s3_key}
+                  title={
+                    profile?.medical_report_s3_key
+                      ? "Send request with your medical report"
+                      : "Upload a medical report in your profile first"
+                  }
+                >
                   Request
                 </button>
               </li>
@@ -262,10 +292,26 @@ export default function UserDashboard() {
                 <div>
                   To <strong>{r.blood_bank_name}</strong> ({r.blood_bank_city}) -{" "}
                   {r.blood_group} ({r.required_units} unit)
+                  {r.status === "ACCEPTED" && r.bank_message ? (
+                    <p className="bank-message">
+                      <strong>Message from blood bank:</strong> {r.bank_message}
+                    </p>
+                  ) : null}
                 </div>
-                <span className={`badge badge-${r.status.toLowerCase()}`}>
-                  {r.status}
-                </span>
+                <div className="request-actions">
+                  <span className={`badge badge-${r.status.toLowerCase()}`}>
+                    {r.status}
+                  </span>
+                  {r.status === "ACCEPTED" && (Number(r.has_fitness_certificate) === 1 || r.has_fitness_certificate === true) ? (
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={() => downloadFitnessCertificate(r.id)}
+                    >
+                      Download fitness certificate
+                    </button>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ul>

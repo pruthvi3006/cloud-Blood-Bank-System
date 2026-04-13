@@ -1,7 +1,19 @@
 import express from "express";
+import { v4 as uuidv4 } from "uuid";
 import { query } from "../config/db.js";
 import { authMiddleware, requireAdmin } from "../middleware/auth.js";
-import { getMedicalReportDownloadUrl } from "../s3/s3Client.js";
+import {
+  getMedicalReportDownloadUrl,
+  getMedicalReportUploadUrl,
+} from "../s3/s3Client.js";
+
+function fitnessCertificateKeyPrefix(requestId) {
+  return `fitness-certificates/request-${requestId}/`;
+}
+
+function isValidFitnessCertificateKey(requestId, key) {
+  return typeof key === "string" && key.startsWith(fitnessCertificateKeyPrefix(requestId));
+}
 
 const router = express.Router();
 
@@ -156,7 +168,7 @@ router.get("/requests", async (req, res) => {
               u.phone as user_phone,
               u.city as user_city,
               u.id as user_id,
-              IF(u.medical_report_s3_key IS NOT NULL, 1, 0) as has_medical_report
+              IF(COALESCE(r.medical_report_s3_key, u.medical_report_s3_key) IS NOT NULL, 1, 0) as has_medical_report
        FROM blood_requests r
        JOIN users u ON u.id = r.user_id
        WHERE r.blood_bank_id = ?
@@ -170,12 +182,14 @@ router.get("/requests", async (req, res) => {
   }
 });
 
-// GET /api/admin/users/:userId/medical-report
-router.get("/users/:userId/medical-report", async (req, res) => {
+// GET /api/admin/requests/:requestId/medical-report — report snapshot for this request
+router.get("/requests/:requestId/medical-report", async (req, res) => {
   try {
-    const { userId } = req.params;
-    
-    // First confirm admin's blood bank
+    const requestId = Number(req.params.requestId);
+    if (!Number.isFinite(requestId)) {
+      return res.status(400).json({ message: "Invalid request id" });
+    }
+
     const bank = await query(
       "SELECT id FROM blood_banks WHERE admin_user_id = ?",
       [req.user.id]
@@ -183,24 +197,70 @@ router.get("/users/:userId/medical-report", async (req, res) => {
     if (bank.length === 0) {
       return res.status(403).json({ message: "Blood bank profile not created" });
     }
+    const bankId = bank[0].id;
 
-    const result = await query(
-      "SELECT medical_report_s3_key FROM users WHERE id = ?",
-      [userId]
+    const rows = await query(
+      `SELECT r.medical_report_s3_key, u.medical_report_s3_key AS user_medical_key
+       FROM blood_requests r
+       JOIN users u ON u.id = r.user_id
+       WHERE r.id = ? AND r.blood_bank_id = ?`,
+      [requestId, bankId]
     );
-    if (result.length === 0) {
-      return res.status(404).json({ message: "User not found" });
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Request not found" });
     }
-    
-    const { medical_report_s3_key: key } = result[0];
+
+    const key = rows[0].medical_report_s3_key || rows[0].user_medical_key;
     if (!key) {
-      return res.status(404).json({ message: "No medical report uploaded" });
+      return res.status(404).json({ message: "No medical report for this request" });
     }
 
     const downloadUrl = await getMedicalReportDownloadUrl({ key });
     res.json({ downloadUrl });
   } catch (err) {
-    console.error("Admin user medical report download error", err);
+    console.error("Admin request medical report download error", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// POST /api/admin/requests/:id/fitness-certificate/upload-url
+router.post("/requests/:id/fitness-certificate/upload-url", async (req, res) => {
+  try {
+    const requestId = Number(req.params.id);
+    if (!Number.isFinite(requestId)) {
+      return res.status(400).json({ message: "Invalid request id" });
+    }
+
+    const { contentType } = req.body;
+    if (!contentType) {
+      return res.status(400).json({ message: "contentType is required" });
+    }
+
+    const bank = await query(
+      "SELECT id FROM blood_banks WHERE admin_user_id = ?",
+      [req.user.id]
+    );
+    if (bank.length === 0) {
+      return res.status(403).json({ message: "Blood bank profile not created" });
+    }
+    const bankId = bank[0].id;
+
+    const reqRows = await query(
+      `SELECT id, status FROM blood_requests WHERE id = ? AND blood_bank_id = ?`,
+      [requestId, bankId]
+    );
+    if (reqRows.length === 0) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+    if (reqRows[0].status !== "PENDING") {
+      return res.status(400).json({ message: "Fitness certificate upload is only for pending requests" });
+    }
+
+    const key = `${fitnessCertificateKeyPrefix(requestId)}${uuidv4()}`;
+    const uploadUrl = await getMedicalReportUploadUrl({ key, contentType });
+    res.json({ uploadUrl, key });
+  } catch (err) {
+    console.error("Admin fitness certificate upload-url error", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -225,20 +285,61 @@ async function updateRequestStatus(id, status, adminUserId) {
   return result;
 }
 
-// POST /api/admin/requests/:id/accept
+// POST /api/admin/requests/:id/accept — body: { fitness_certificate_s3_key, bank_message? }
 router.post("/requests/:id/accept", async (req, res) => {
   try {
-    const { id } = req.params;
-    const result = await updateRequestStatus(id, "ACCEPTED", req.user.id);
-    if (result.length === 0) {
+    const requestId = Number(req.params.id);
+    if (!Number.isFinite(requestId)) {
+      return res.status(400).json({ message: "Invalid request id" });
+    }
+
+    const { fitness_certificate_s3_key, bank_message } = req.body || {};
+    if (!fitness_certificate_s3_key || typeof fitness_certificate_s3_key !== "string") {
+      return res.status(400).json({
+        message: "fitness_certificate_s3_key is required. Upload the certificate first, then accept.",
+      });
+    }
+    if (!isValidFitnessCertificateKey(requestId, fitness_certificate_s3_key)) {
+      return res.status(400).json({ message: "Invalid fitness certificate key for this request" });
+    }
+
+    const bank = await query(
+      "SELECT id FROM blood_banks WHERE admin_user_id = ?",
+      [req.user.id]
+    );
+    if (bank.length === 0) {
+      return res.status(400).json({ message: "Blood bank profile not created" });
+    }
+    const bankId = bank[0].id;
+
+    const existing = await query(
+      `SELECT id, status FROM blood_requests WHERE id = ? AND blood_bank_id = ?`,
+      [requestId, bankId]
+    );
+    if (existing.length === 0) {
       return res.status(404).json({ message: "Request not found" });
     }
+    if (existing[0].status !== "PENDING") {
+      return res.status(400).json({ message: "Request is not pending" });
+    }
+
+    const message =
+      bank_message === undefined || bank_message === null ? "" : String(bank_message);
+
+    await query(
+      `UPDATE blood_requests
+       SET status = 'ACCEPTED',
+           fitness_certificate_s3_key = ?,
+           bank_message = ?,
+           updated_at = NOW()
+       WHERE id = ? AND blood_bank_id = ?`,
+      [fitness_certificate_s3_key, message, requestId, bankId]
+    );
+
+    const result = await query("SELECT * FROM blood_requests WHERE id = ?", [requestId]);
     res.json(result[0]);
   } catch (err) {
     console.error("Admin accept request error", err);
-    if (err.message.includes("Blood bank profile not created")) {
-      return res.status(400).json({ message: err.message });
-    }
     res.status(500).json({ message: "Internal server error" });
   }
 });

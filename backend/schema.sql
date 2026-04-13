@@ -49,6 +49,9 @@ CREATE TABLE IF NOT EXISTS blood_requests (
   status ENUM('PENDING', 'ACCEPTED', 'REJECTED') NOT NULL,
   created_at TIMESTAMP NOT NULL,
   updated_at TIMESTAMP NOT NULL,
+  medical_report_s3_key TEXT,
+  fitness_certificate_s3_key TEXT,
+  bank_message TEXT,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (blood_bank_id) REFERENCES blood_banks(id) ON DELETE CASCADE
 );

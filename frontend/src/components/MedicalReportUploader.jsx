@@ -2,7 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import { authHeaders } from "../services/auth.js";
 
-export default function MedicalReportUploader() {
+export default function MedicalReportUploader({ onUploaded }) {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -32,6 +32,7 @@ export default function MedicalReportUploader() {
 
       alert("Medical report uploaded successfully.");
       setFile(null);
+      onUploaded?.();
     } catch (err) {
       console.error("Upload error details:", err);
       const errorMsg = err.response?.statusText || err.message || "Unknown error";

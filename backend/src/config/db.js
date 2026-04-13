@@ -1,12 +1,33 @@
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
+
 dotenv.config();
-const pool = mysql.createPool({
-  uri: process.env.DATABASE_URL,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-});
+
+function poolOptions() {
+  const uri = process.env.DATABASE_URL;
+  if (!uri) {
+    throw new Error("DATABASE_URL is not set");
+  }
+
+  const base = {
+    uri,
+    waitForConnections: true,
+    connectionLimit: Number(process.env.DATABASE_POOL_SIZE || 10),
+    queueLimit: 0,
+    connectTimeout: Number(process.env.DATABASE_CONNECT_TIMEOUT_MS || 15_000),
+  };
+
+  // Amazon RDS MySQL: use TLS (set DATABASE_SSL=true in production).
+  if (process.env.DATABASE_SSL === "true") {
+    base.ssl = {
+      rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== "false",
+    };
+  }
+
+  return base;
+}
+
+const pool = mysql.createPool(poolOptions());
 
 pool.on?.("error", (err) => {
   console.error("Unexpected MySQL client error", err);

@@ -1,0 +1,24 @@
+# Copy to terraform.tfvars (do not commit secrets).
+# cp terraform.tfvars.example terraform.tfvars
+
+aws_region   = "us-east-1"
+project_name = "blood-bank"
+environment  = "dev"
+
+# Lock SSH to your IP: curl -s https://checkip.amazonaws.com
+developer_ip_cidr = "203.0.113.50/32"
+
+# After deploy, add your production frontend URL.
+cors_allowed_origins = [
+  "http://localhost:5173",
+  # "https://app.yourdomain.com",
+]
+
+# Optional: attach the generated S3 policy to an existing IAM user (local dev keys).
+# attach_s3_policy_to_iam_user = "bloodbank-s3-user"
+
+# Optional RDS (costs money). Set true and provide db_password (use env TF_VAR_db_password).
+# enable_rds   = true
+# db_name      = "bloodbank"
+# db_username  = "bloodbank_admin"
+# db_password  = "use-strong-password-here"
