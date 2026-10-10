@@ -1,5 +1,5 @@
 
-name: Blood Bank CI
+name: Blood Bank CI/CD
 
 on:
   push:
@@ -16,11 +16,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Check backend JavaScript syntax
-        run: node --check server.js
+      - name: Check backend syntax
+        run: node --check src/server.js
         working-directory: backend
 
       - name: Build backend Docker image
@@ -28,8 +28,6 @@ jobs:
 
       - name: Build frontend Docker image
         run: docker build -t bloodbank-frontend:ci ./frontend
-
-
 
   deploy:
     name: Deploy to AWS EC2
@@ -47,8 +45,7 @@ jobs:
           sudo apt-get install -y ansible rsync
 
       - name: Install Ansible collections
-        run: |
-          ansible-galaxy collection install ansible.posix community.docker
+        run: ansible-galaxy collection install ansible.posix community.docker
 
       - name: Configure SSH
         env:
@@ -77,8 +74,7 @@ jobs:
           MYSQL_USER: ${{ secrets.MYSQL_USER }}
           MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
-        run: |
-          ansible-playbook -i inventory-ci.ini deploy-app.yml
+        run: ansible-playbook -i inventory-ci.ini deploy-app.yml
 
       - name: Verify application health
         env:
@@ -87,4 +83,3 @@ jobs:
           curl --fail --silent --show-error \
             --retry 10 --retry-delay 5 --retry-connrefused \
             "http://${EC2_HOST}/api/health"
-
