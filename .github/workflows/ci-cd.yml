@@ -18,9 +18,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+     
       - name: Check backend syntax
-        run: node --check server.js
+        run: node --check src/server.js
         working-directory: backend
+
 
       - name: Build backend Docker image
         run: docker build -t bloodbank-backend:ci ./backend
