@@ -1,0 +1,29 @@
+
+name: Blood Bank CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check backend syntax
+        run: node --check server.js
+        working-directory: backend
+
+      - name: Build backend Docker image
+        run: docker build -t bloodbank-backend:ci ./backend
+
+      - name: Build frontend Docker image
+        run: docker build -t bloodbank-frontend:ci ./frontend
