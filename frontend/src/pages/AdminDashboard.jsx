@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { authHeaders } from "../services/auth.js";
+import { downloadAuthFile } from "../services/api.js";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
@@ -142,16 +143,13 @@ export default function AdminDashboard() {
 
   async function downloadMedicalReport(requestId) {
     try {
-      const { data } = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/admin/requests/${requestId}/medical-report`,
-        { headers: authHeaders() }
+      await downloadAuthFile(
+        `/api/admin/requests/${requestId}/medical-report`,
+        "medical-report"
       );
-      if (data.downloadUrl) {
-        window.open(data.downloadUrl, "_blank", "noopener,noreferrer");
-      }
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Failed to download medical report");
+      alert(err.response?.data?.message || err.message || "Failed to download medical report");
     }
   }
 
@@ -162,24 +160,13 @@ export default function AdminDashboard() {
     }
     setAcceptSubmitting(true);
     try {
-      const { data: urlData } = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/admin/requests/${requestId}/fitness-certificate/upload-url`,
-        { contentType: acceptFile.type || "application/octet-stream" },
-        { headers: authHeaders() }
-      );
-
-      await axios.put(urlData.uploadUrl, acceptFile, {
-        headers: {
-          "Content-Type": acceptFile.type || "application/octet-stream",
-        },
-      });
+      const form = new FormData();
+      form.append("file", acceptFile);
+      form.append("bank_message", acceptMessage);
 
       await axios.post(
         `${import.meta.env.VITE_API_URL}/api/admin/requests/${requestId}/accept`,
-        {
-          fitness_certificate_s3_key: urlData.key,
-          bank_message: acceptMessage,
-        },
+        form,
         { headers: authHeaders() }
       );
 

@@ -1,15 +1,14 @@
 import express from "express";
+import { v4 as uuidv4 } from "uuid";
 import { query } from "../config/db.js";
 import { authMiddleware } from "../middleware/auth.js";
-import { getMedicalReportUploadUrl, getMedicalReportDownloadUrl } from "../s3/s3Client.js";
-import { v4 as uuidv4 } from "uuid";
+import { uploadSingle } from "../middleware/upload.js";
+import { extensionForFile, saveBuffer, sendStoredFile } from "../storage/localFiles.js";
 
 const router = express.Router();
 
-// All routes here require auth
 router.use(authMiddleware);
 
-// GET /api/profile
 router.get("/", async (req, res) => {
   try {
     const result = await query(
@@ -29,7 +28,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-// PUT /api/profile
 router.put("/", async (req, res) => {
   try {
     const {
@@ -70,28 +68,25 @@ router.put("/", async (req, res) => {
   }
 });
 
-// POST /api/profile/medical-report/upload-url
-router.post("/medical-report/upload-url", async (req, res) => {
+router.post("/medical-report", uploadSingle, async (req, res) => {
   try {
-    const { contentType } = req.body;
-    if (!contentType) {
-      return res.status(400).json({ message: "contentType is required" });
+    if (!req.file) {
+      return res.status(400).json({ message: "file is required" });
     }
 
-    const key = `medical-reports/${req.user.id}/${uuidv4()}`;
-    const uploadUrl = await getMedicalReportUploadUrl({ key, contentType });
-
+    const ext = extensionForFile(req.file.originalname, req.file.mimetype);
+    const key = `medical-reports/${req.user.id}/${uuidv4()}${ext}`;
+    await saveBuffer({ key, buffer: req.file.buffer });
     await query("UPDATE users SET medical_report_s3_key = ? WHERE id = ?", [key, req.user.id]);
 
-    res.json({ uploadUrl, key });
+    res.json({ key });
   } catch (err) {
-    console.error("Medical report upload-url error", err);
+    console.error("Medical report upload error", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
 
-// GET /api/profile/medical-report/download-url
-router.get("/medical-report/download-url", async (req, res) => {
+router.get("/medical-report", async (req, res) => {
   try {
     const result = await query(
       "SELECT medical_report_s3_key FROM users WHERE id = ?",
@@ -105,13 +100,14 @@ router.get("/medical-report/download-url", async (req, res) => {
       return res.status(404).json({ message: "No medical report uploaded" });
     }
 
-    const downloadUrl = await getMedicalReportDownloadUrl({ key });
-    res.json({ downloadUrl });
+    const sent = await sendStoredFile(res, key, "medical-report");
+    if (!sent) {
+      return res.status(404).json({ message: "No medical report uploaded" });
+    }
   } catch (err) {
-    console.error("Medical report download-url error", err);
+    console.error("Medical report download error", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
 
 export default router;
-

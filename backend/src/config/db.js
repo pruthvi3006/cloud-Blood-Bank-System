@@ -17,7 +17,6 @@ function poolOptions() {
     connectTimeout: Number(process.env.DATABASE_CONNECT_TIMEOUT_MS || 15_000),
   };
 
-  // Amazon RDS MySQL: use TLS (set DATABASE_SSL=true in production).
   if (process.env.DATABASE_SSL === "true") {
     base.ssl = {
       rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== "false",

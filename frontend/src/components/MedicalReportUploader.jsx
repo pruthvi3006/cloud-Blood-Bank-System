@@ -1,6 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import { authHeaders } from "../services/auth.js";
+import { apiUrl, downloadAuthFile } from "../services/api.js";
 
 export default function MedicalReportUploader({ onUploaded }) {
   const [file, setFile] = useState(null);
@@ -11,23 +12,10 @@ export default function MedicalReportUploader({ onUploaded }) {
     if (!file) return;
     setUploading(true);
     try {
-      const { data } = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/profile/medical-report/upload-url`,
-        { contentType: file.type || "application/octet-stream" },
-        { headers: authHeaders() }
-      );
-
-      // Upload file to S3 using presigned URL
-      await axios.put(data.uploadUrl, file, {
-        headers: {
-          "Content-Type": file.type || "application/octet-stream",
-        },
-        onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round(
-            (progressEvent.loaded * 100) / progressEvent.total
-          );
-          console.log(`Upload progress: ${percentCompleted}%`);
-        },
+      const form = new FormData();
+      form.append("file", file);
+      await axios.post(apiUrl("/api/profile/medical-report"), form, {
+        headers: authHeaders(),
       });
 
       alert("Medical report uploaded successfully.");
@@ -35,7 +23,7 @@ export default function MedicalReportUploader({ onUploaded }) {
       onUploaded?.();
     } catch (err) {
       console.error("Upload error details:", err);
-      const errorMsg = err.response?.statusText || err.message || "Unknown error";
+      const errorMsg = err.response?.data?.message || err.message || "Unknown error";
       alert(`Upload failed: ${errorMsg}`);
     } finally {
       setUploading(false);
@@ -45,14 +33,10 @@ export default function MedicalReportUploader({ onUploaded }) {
   async function handleDownload() {
     setDownloading(true);
     try {
-      const { data } = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/profile/medical-report/download-url`,
-        { headers: authHeaders() }
-      );
-      window.open(data.downloadUrl, "_blank");
+      await downloadAuthFile("/api/profile/medical-report", "medical-report");
     } catch (err) {
       console.error(err);
-      alert("No medical report found or download failed");
+      alert(err.message || "No medical report found or download failed");
     } finally {
       setDownloading(false);
     }
@@ -77,4 +61,3 @@ export default function MedicalReportUploader({ onUploaded }) {
     </div>
   );
 }
-

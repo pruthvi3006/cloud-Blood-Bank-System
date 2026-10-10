@@ -1,12 +1,11 @@
-# Environment
+node_modules/
 .env
-.env.local
+.env.*
+!.env.example
 *.pem
-
-# Terraform
-infrastructure/terraform/.terraform/
-infrastructure/terraform/.terraform.lock.hcl
-infrastructure/terraform/*.tfstate
-infrastructure/terraform/*.tfstate.*
-infrastructure/terraform/terraform.tfvars
-infrastructure/terraform/crash.log
+.terraform/
+terraform.tfstate
+terraform.tfstate.*
+backend/uploads/**
+!backend/uploads/.gitkeep
+dist/

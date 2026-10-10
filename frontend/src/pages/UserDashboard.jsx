@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { authHeaders } from "../services/auth.js";
 import MedicalReportUploader from "../components/MedicalReportUploader.jsx";
+import { downloadAuthFile } from "../services/api.js";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
@@ -134,16 +135,13 @@ export default function UserDashboard() {
 
   async function downloadFitnessCertificate(requestId) {
     try {
-      const { data } = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/requests/${requestId}/fitness-certificate`,
-        { headers: authHeaders() }
+      await downloadAuthFile(
+        `/api/requests/${requestId}/fitness-certificate`,
+        "fitness-certificate"
       );
-      if (data.downloadUrl) {
-        window.open(data.downloadUrl, "_blank", "noopener,noreferrer");
-      }
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Could not download fitness certificate");
+      alert(err.response?.data?.message || err.message || "Could not download fitness certificate");
     }
   }
 

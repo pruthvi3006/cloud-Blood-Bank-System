@@ -1,7 +1,7 @@
 {
   "name": "blood-bank-backend",
   "version": "1.0.0",
-  "description": "Cloud-based blood bank system backend (Node.js/Express on AWS)",
+  "description": "Blood bank system backend (Node.js/Express)",
   "main": "src/server.js",
   "type": "module",
   "scripts": {
@@ -9,13 +9,12 @@
     "start": "node src/server.js"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.680.0",
-    "@aws-sdk/s3-request-presigner": "^3.680.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.3.0",
     "mysql2": "^3.19.1",
     "pg": "^8.13.0",
     "uuid": "^9.0.1"

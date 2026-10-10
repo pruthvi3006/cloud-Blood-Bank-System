@@ -1,7 +1,7 @@
 import express from "express";
 import { query } from "../config/db.js";
 import { authMiddleware } from "../middleware/auth.js";
-import { getMedicalReportDownloadUrl } from "../s3/s3Client.js";
+import { sendStoredFile } from "../storage/localFiles.js";
 
 const router = express.Router();
 
@@ -86,7 +86,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET /api/requests/:id/fitness-certificate — presigned download (accepted requests only)
 router.get("/:id/fitness-certificate", async (req, res) => {
   try {
     const requestId = Number(req.params.id);
@@ -109,8 +108,10 @@ router.get("/:id/fitness-certificate", async (req, res) => {
       return res.status(404).json({ message: "No fitness certificate on file" });
     }
 
-    const downloadUrl = await getMedicalReportDownloadUrl({ key });
-    res.json({ downloadUrl });
+    const sent = await sendStoredFile(res, key, "fitness-certificate");
+    if (!sent) {
+      return res.status(404).json({ message: "No fitness certificate on file" });
+    }
   } catch (err) {
     console.error("User fitness certificate download error", err);
     res.status(500).json({ message: "Internal server error" });

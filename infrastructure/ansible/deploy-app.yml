@@ -1,0 +1,89 @@
+---
+- name: Deploy Blood Bank System
+  hosts: web
+  become: yes
+
+  vars:
+    app_dir: /opt/blood-bank-system
+
+  tasks:
+
+    - name: Create application directory
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: "0755"
+
+    - name: Create backend directory
+      ansible.builtin.file:
+        path: "{{ app_dir }}/backend"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: "0755"
+
+    - name: Create frontend directory
+      ansible.builtin.file:
+        path: "{{ app_dir }}/frontend"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: "0755"
+
+    - name: Copy backend source
+      ansible.posix.synchronize:
+        src: "../../backend/"
+        dest: "{{ app_dir }}/backend/"
+        rsync_opts:
+          - "--exclude=node_modules"
+          - "--exclude=uploads"
+          - "--exclude=.env"
+          - "--exclude=.git"
+
+    - name: Copy frontend source
+      ansible.posix.synchronize:
+        src: "../../frontend/"
+        dest: "{{ app_dir }}/frontend/"
+        rsync_opts:
+          - "--exclude=node_modules"
+          - "--exclude=dist"
+          - "--exclude=.env"
+          - "--exclude=.env.local"
+          - "--exclude=.git"
+
+    - name: Copy Docker Compose file
+      ansible.builtin.copy:
+        src: "../../docker-compose.yml"
+        dest: "{{ app_dir }}/docker-compose.yml"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0644"
+
+    - name: Copy backend schema
+      ansible.builtin.copy:
+        src: "../../backend/schema.sql"
+        dest: "{{ app_dir }}/backend/schema.sql"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0644"
+
+    - name: Create production environment file
+      ansible.builtin.copy:
+        dest: "{{ app_dir }}/.env"
+        owner: ubuntu
+        group: ubuntu
+        mode: "0600"
+        content: |
+          MYSQL_ROOT_PASSWORD={{ lookup('env', 'MYSQL_ROOT_PASSWORD') }}
+          MYSQL_DATABASE={{ lookup('env', 'MYSQL_DATABASE') }}
+          MYSQL_USER={{ lookup('env', 'MYSQL_USER') }}
+          MYSQL_PASSWORD={{ lookup('env', 'MYSQL_PASSWORD') }}
+          JWT_SECRET={{ lookup('env', 'JWT_SECRET') }}
+
+    - name: Build and start Blood Bank containers
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_dir }}"
+        state: present
+        build: always
