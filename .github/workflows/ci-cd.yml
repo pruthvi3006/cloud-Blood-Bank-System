@@ -1,0 +1,90 @@
+
+name: Blood Bank CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and Verify
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check backend JavaScript syntax
+        run: node --check server.js
+        working-directory: backend
+
+      - name: Build backend Docker image
+        run: docker build -t bloodbank-backend:ci ./backend
+
+      - name: Build frontend Docker image
+        run: docker build -t bloodbank-frontend:ci ./frontend
+
+
+
+  deploy:
+    name: Deploy to AWS EC2
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Ansible and rsync
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible rsync
+
+      - name: Install Ansible collections
+        run: |
+          ansible-galaxy collection install ansible.posix community.docker
+
+      - name: Configure SSH
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$EC2_SSH_PRIVATE_KEY" > ~/.ssh/bloodbank-key.pem
+          chmod 600 ~/.ssh/bloodbank-key.pem
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Create Ansible inventory
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          printf '[web]\nbloodbank-server ansible_host=%s ansible_user=ubuntu ansible_ssh_private_key_file=%s\n' \
+            "$EC2_HOST" "$HOME/.ssh/bloodbank-key.pem" \
+            > infrastructure/ansible/inventory-ci.ini
+
+      - name: Deploy application
+        working-directory: infrastructure/ansible
+        env:
+          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+          MYSQL_DATABASE: ${{ secrets.MYSQL_DATABASE }}
+          MYSQL_USER: ${{ secrets.MYSQL_USER }}
+          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          ansible-playbook -i inventory-ci.ini deploy-app.yml
+
+      - name: Verify application health
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          curl --fail --silent --show-error \
+            --retry 10 --retry-delay 5 --retry-connrefused \
+            "http://${EC2_HOST}/api/health"
+
