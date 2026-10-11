@@ -47,16 +47,31 @@ jobs:
       - name: Install Ansible collections
         run: ansible-galaxy collection install ansible.posix community.docker
 
-      - name: Configure SSH
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-        run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          printf '%s\n' "$EC2_SSH_PRIVATE_KEY" > ~/.ssh/bloodbank-key.pem
-          chmod 600 ~/.ssh/bloodbank-key.pem
-          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+     ```yaml
+        - name: Configure SSH
+          env:
+            EC2_HOST: ${{ secrets.EC2_HOST }}
+            EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          run: |
+            set -e
+            mkdir -p ~/.ssh
+            chmod 700 ~/.ssh
+
+            printf '%s\n' "$EC2_SSH_PRIVATE_KEY" > ~/.ssh/bloodbank-key.pem
+            chmod 600 ~/.ssh/bloodbank-key.pem
+
+            test -s ~/.ssh/bloodbank-key.pem
+            ssh-keygen -y -f ~/.ssh/bloodbank-key.pem > /dev/null
+
+            for i in {1..12}; do
+              if ssh-keyscan -T 5 -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null; then
+                break
+              fi
+              sleep 5
+            done
+
+            ssh-keygen -F "$EC2_HOST" -f ~/.ssh/known_hosts
+```
 
       - name: Create Ansible inventory
         env:
