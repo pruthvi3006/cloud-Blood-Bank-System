@@ -47,12 +47,12 @@ jobs:
       - name: Install Ansible collections
         run: ansible-galaxy collection install ansible.posix community.docker
 
-     ```yaml
-        - name: Configure SSH
-          env:
+     
+      - name: Configure SSH
+        env:
             EC2_HOST: ${{ secrets.EC2_HOST }}
             EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          run: |
+        run: |
             set -e
             mkdir -p ~/.ssh
             chmod 700 ~/.ssh
@@ -71,7 +71,7 @@ jobs:
             done
 
             ssh-keygen -F "$EC2_HOST" -f ~/.ssh/known_hosts
-```
+
 
       - name: Create Ansible inventory
         env:
