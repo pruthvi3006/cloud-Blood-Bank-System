@@ -1,21 +1,17 @@
-services:
 
+services:
   database:
     image: mysql:8.0
     container_name: bloodbank-database
-
     restart: unless-stopped
-
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-
     volumes:
       - mysql_data:/var/lib/mysql
       - ./backend/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
-
     healthcheck:
       test:
         [
@@ -32,46 +28,59 @@ services:
       timeout: 5s
       retries: 10
 
-
   backend:
     build:
       context: ./backend
-
     container_name: bloodbank-backend
-
     restart: unless-stopped
-
     environment:
       PORT: 4000
       DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@database:3306/${MYSQL_DATABASE}
-      
-
     depends_on:
       database:
         condition: service_healthy
-
     volumes:
       - uploads_data:/app/uploads
-
     expose:
       - "4000"
-
 
   frontend:
     build:
       context: ./frontend
-
     container_name: bloodbank-frontend
-
     restart: unless-stopped
-
     ports:
       - "80:80"
-
     depends_on:
       - backend
 
+  prometheus:
+    image: prom/prometheus:v3.8.0
+    container_name: bloodbank-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      - node-exporter
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    container_name: bloodbank-node-exporter
+    restart: unless-stopped
+    command:
+      - "--path.rootfs=/host"
+    volumes:
+      - /:/host:ro,rslave
+    expose:
+      - "9100"
 
 volumes:
   mysql_data:
   uploads_data:
+  prometheus_data:

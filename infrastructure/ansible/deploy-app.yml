@@ -87,3 +87,17 @@
         project_src: "{{ app_dir }}"
         state: present
         build: always
+
+    
+    - name: Create Prometheus configuration directory
+      ansible.builtin.file:
+        path: "{{ app_dir }}/prometheus"
+        state: directory
+        mode: "0755"
+
+    - name: Copy Prometheus configuration to EC2
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../prometheus/prometheus.yml"
+        dest: "{{ app_dir }}/prometheus/prometheus.yml"
+        mode: "0644"
+
