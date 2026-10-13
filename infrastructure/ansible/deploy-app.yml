@@ -81,13 +81,6 @@
           MYSQL_USER={{ lookup('env', 'MYSQL_USER') }}
           MYSQL_PASSWORD={{ lookup('env', 'MYSQL_PASSWORD') }}
           JWT_SECRET={{ lookup('env', 'JWT_SECRET') }}
-
-    - name: Build and start Blood Bank containers
-      community.docker.docker_compose_v2:
-        project_src: "{{ app_dir }}"
-        state: present
-        build: always
-
     
     - name: Create Prometheus configuration directory
       ansible.builtin.file:
@@ -101,3 +94,11 @@
         dest: "{{ app_dir }}/prometheus/prometheus.yml"
         mode: "0644"
 
+    - name: Build and start Blood Bank containers
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_dir }}"
+        state: present
+        build: always
+
+    
+    
