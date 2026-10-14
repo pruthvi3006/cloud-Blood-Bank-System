@@ -9,3 +9,8 @@ scrape_configs:
   - job_name: "ec2-server"
     static_configs:
       - targets: ["node-exporter:9100"]
+  
+  - job_name: "bloodbank-backend"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["backend:4000"]
